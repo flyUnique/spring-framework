@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,9 +43,8 @@ import org.springframework.web.server.WebSession;
  */
 public class InMemoryWebSessionStore implements WebSessionStore {
 
-	/** Minimum period between expiration checks */
+	/** Minimum period between expiration checks. */
 	private static final Duration EXPIRATION_CHECK_PERIOD = Duration.ofSeconds(60);
-
 
 	private static final IdGenerator idGenerator = new JdkIdGenerator();
 
@@ -90,9 +89,7 @@ public class InMemoryWebSessionStore implements WebSessionStore {
 
 	@Override
 	public Mono<WebSession> retrieveSession(String id) {
-
 		Instant currentTime = Instant.now(this.clock);
-
 		if (!this.sessions.isEmpty() && !currentTime.isBefore(this.nextExpirationCheckTime)) {
 			checkExpiredSessions(currentTime);
 		}
@@ -160,12 +157,10 @@ public class InMemoryWebSessionStore implements WebSessionStore {
 
 		private final AtomicReference<State> state = new AtomicReference<>(State.NEW);
 
-
 		public InMemoryWebSession() {
 			this.creationTime = Instant.now(getClock());
 			this.lastAccessTime = this.creationTime;
 		}
-
 
 		@Override
 		public String getId() {
@@ -210,11 +205,7 @@ public class InMemoryWebSessionStore implements WebSessionStore {
 		@Override
 		public Mono<Void> changeSessionId() {
 			String currentId = this.id.get();
-			if (InMemoryWebSessionStore.this.sessions.remove(currentId) == null) {
-				return Mono.error(new IllegalStateException(
-						"Failed to change session id: " + currentId +
-								" because the Session is no longer present in the store."));
-			}
+			InMemoryWebSessionStore.this.sessions.remove(currentId);
 			String newId = String.valueOf(idGenerator.generateId());
 			this.id.set(newId);
 			InMemoryWebSessionStore.this.sessions.put(this.getId(), this);
@@ -263,6 +254,7 @@ public class InMemoryWebSessionStore implements WebSessionStore {
 			this.lastAccessTime = currentTime;
 		}
 	}
+
 
 	private enum State { NEW, STARTED, EXPIRED }
 

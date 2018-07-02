@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ import org.springframework.util.Assert;
  * @author Sebastien Deleuze
  * @author Rossen Stoyanchev
  * @since 5.0
+ * @param <T> the type of objects in the decoded output stream
  */
 public class DecoderHttpMessageReader<T> implements HttpMessageReader<T> {
 
@@ -93,7 +94,15 @@ public class DecoderHttpMessageReader<T> implements HttpMessageReader<T> {
 		return this.decoder.decodeToMono(message.getBody(), elementType, contentType, hints);
 	}
 
-	private MediaType getContentType(HttpMessage inputMessage) {
+	/**
+	 * Determine the Content-Type of the HTTP message based on the
+	 * "Content-Type" header or otherwise default to
+	 * {@link MediaType#APPLICATION_OCTET_STREAM}.
+	 * @param inputMessage the HTTP message
+	 * @return the MediaType, possibly {@code null}.
+	 */
+	@Nullable
+	protected MediaType getContentType(HttpMessage inputMessage) {
 		MediaType contentType = inputMessage.getHeaders().getContentType();
 		return (contentType != null ? contentType : MediaType.APPLICATION_OCTET_STREAM);
 	}

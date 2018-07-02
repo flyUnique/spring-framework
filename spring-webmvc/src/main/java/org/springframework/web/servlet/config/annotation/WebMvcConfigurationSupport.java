@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Predicate;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 
@@ -67,8 +68,6 @@ import org.springframework.validation.Validator;
 import org.springframework.web.HttpRequestHandler;
 import org.springframework.web.accept.ContentNegotiationManager;
 import org.springframework.web.bind.WebDataBinder;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.support.ConfigurableWebBindingInitializer;
 import org.springframework.web.context.ServletContextAware;
 import org.springframework.web.cors.CorsConfiguration;
@@ -105,11 +104,11 @@ import org.springframework.web.util.UrlPathHelper;
  * It is typically imported by adding {@link EnableWebMvc @EnableWebMvc} to an
  * application {@link Configuration @Configuration} class. An alternative more
  * advanced option is to extend directly from this class and override methods as
- * necessary remembering to add {@link Configuration @Configuration} to the
+ * necessary, remembering to add {@link Configuration @Configuration} to the
  * subclass and {@link Bean @Bean} to overridden {@link Bean @Bean} methods.
- * For more details see the Javadoc of {@link EnableWebMvc @EnableWebMvc}.
+ * For more details see the javadoc of {@link EnableWebMvc @EnableWebMvc}.
  *
- * <p>This class registers the following {@link HandlerMapping}s:</p>
+ * <p>This class registers the following {@link HandlerMapping HandlerMappings}:</p>
  * <ul>
  * <li>{@link RequestMappingHandlerMapping}
  * ordered at 0 for mapping requests to annotated controller methods.
@@ -123,23 +122,23 @@ import org.springframework.web.util.UrlPathHelper;
  * ordered at {@code Integer.MAX_VALUE} to forward requests to the default servlet.
  * </ul>
  *
- * <p>Registers these {@link HandlerAdapter}s:
+ * <p>Registers these {@link HandlerAdapter HandlerAdapters}:
  * <ul>
  * <li>{@link RequestMappingHandlerAdapter}
  * for processing requests with annotated controller methods.
  * <li>{@link HttpRequestHandlerAdapter}
- * for processing requests with {@link HttpRequestHandler}s.
+ * for processing requests with {@link HttpRequestHandler HttpRequestHandlers}.
  * <li>{@link SimpleControllerHandlerAdapter}
- * for processing requests with interface-based {@link Controller}s.
+ * for processing requests with interface-based {@link Controller Controllers}.
  * </ul>
  *
  * <p>Registers a {@link HandlerExceptionResolverComposite} with this chain of
  * exception resolvers:
  * <ul>
- * <li>{@link ExceptionHandlerExceptionResolver} for handling exceptions
- * through @{@link ExceptionHandler} methods.
- * <li>{@link ResponseStatusExceptionResolver} for exceptions annotated
- * with @{@link ResponseStatus}.
+ * <li>{@link ExceptionHandlerExceptionResolver} for handling exceptions through
+ * {@link org.springframework.web.bind.annotation.ExceptionHandler} methods.
+ * <li>{@link ResponseStatusExceptionResolver} for exceptions annotated with
+ * {@link org.springframework.web.bind.annotation.ResponseStatus}.
  * <li>{@link DefaultHandlerExceptionResolver} for resolving known Spring
  * exception types
  * </ul>
@@ -161,7 +160,7 @@ import org.springframework.web.util.UrlPathHelper;
  * <li>a {@link DefaultFormattingConversionService}
  * <li>a {@link org.springframework.validation.beanvalidation.OptionalValidatorFactoryBean}
  * if a JSR-303 implementation is available on the classpath
- * <li>a range of {@link HttpMessageConverter}s depending on the third-party
+ * <li>a range of {@link HttpMessageConverter HttpMessageConverters} depending on the third-party
  * libraries available on the classpath.
  * </ul>
  *
@@ -175,29 +174,38 @@ import org.springframework.web.util.UrlPathHelper;
 public class WebMvcConfigurationSupport implements ApplicationContextAware, ServletContextAware {
 
 	private static boolean romePresent =
-			ClassUtils.isPresent("com.rometools.rome.feed.WireFeed", WebMvcConfigurationSupport.class.getClassLoader());
+			ClassUtils.isPresent("com.rometools.rome.feed.WireFeed",
+					WebMvcConfigurationSupport.class.getClassLoader());
 
 	private static final boolean jaxb2Present =
-			ClassUtils.isPresent("javax.xml.bind.Binder", WebMvcConfigurationSupport.class.getClassLoader());
+			ClassUtils.isPresent("javax.xml.bind.Binder",
+					WebMvcConfigurationSupport.class.getClassLoader());
 
 	private static final boolean jackson2Present =
-			ClassUtils.isPresent("com.fasterxml.jackson.databind.ObjectMapper", WebMvcConfigurationSupport.class.getClassLoader()) &&
-					ClassUtils.isPresent("com.fasterxml.jackson.core.JsonGenerator", WebMvcConfigurationSupport.class.getClassLoader());
+			ClassUtils.isPresent("com.fasterxml.jackson.databind.ObjectMapper",
+					WebMvcConfigurationSupport.class.getClassLoader()) &&
+			ClassUtils.isPresent("com.fasterxml.jackson.core.JsonGenerator",
+					WebMvcConfigurationSupport.class.getClassLoader());
 
 	private static final boolean jackson2XmlPresent =
-			ClassUtils.isPresent("com.fasterxml.jackson.dataformat.xml.XmlMapper", WebMvcConfigurationSupport.class.getClassLoader());
+			ClassUtils.isPresent("com.fasterxml.jackson.dataformat.xml.XmlMapper",
+					WebMvcConfigurationSupport.class.getClassLoader());
 
 	private static final boolean jackson2SmilePresent =
-			ClassUtils.isPresent("com.fasterxml.jackson.dataformat.smile.SmileFactory", WebMvcConfigurationSupport.class.getClassLoader());
+			ClassUtils.isPresent("com.fasterxml.jackson.dataformat.smile.SmileFactory",
+					WebMvcConfigurationSupport.class.getClassLoader());
 
 	private static final boolean jackson2CborPresent =
-			ClassUtils.isPresent("com.fasterxml.jackson.dataformat.cbor.CBORFactory", WebMvcConfigurationSupport.class.getClassLoader());
+			ClassUtils.isPresent("com.fasterxml.jackson.dataformat.cbor.CBORFactory",
+					WebMvcConfigurationSupport.class.getClassLoader());
 
 	private static final boolean gsonPresent =
-			ClassUtils.isPresent("com.google.gson.Gson", WebMvcConfigurationSupport.class.getClassLoader());
+			ClassUtils.isPresent("com.google.gson.Gson",
+					WebMvcConfigurationSupport.class.getClassLoader());
 
 	private static final boolean jsonbPresent =
-			ClassUtils.isPresent("javax.json.bind.Jsonb", WebMvcConfigurationSupport.class.getClassLoader());
+			ClassUtils.isPresent("javax.json.bind.Jsonb",
+					WebMvcConfigurationSupport.class.getClassLoader());
 
 
 	@Nullable
@@ -277,15 +285,18 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 		mapping.setCorsConfigurations(getCorsConfigurations());
 
 		PathMatchConfigurer configurer = getPathMatchConfigurer();
+
 		Boolean useSuffixPatternMatch = configurer.isUseSuffixPatternMatch();
-		Boolean useRegisteredSuffixPatternMatch = configurer.isUseRegisteredSuffixPatternMatch();
-		Boolean useTrailingSlashMatch = configurer.isUseTrailingSlashMatch();
 		if (useSuffixPatternMatch != null) {
 			mapping.setUseSuffixPatternMatch(useSuffixPatternMatch);
 		}
+
+		Boolean useRegisteredSuffixPatternMatch = configurer.isUseRegisteredSuffixPatternMatch();
 		if (useRegisteredSuffixPatternMatch != null) {
 			mapping.setUseRegisteredSuffixPatternMatch(useRegisteredSuffixPatternMatch);
 		}
+
+		Boolean useTrailingSlashMatch = configurer.isUseTrailingSlashMatch();
 		if (useTrailingSlashMatch != null) {
 			mapping.setUseTrailingSlashMatch(useTrailingSlashMatch);
 		}
@@ -298,6 +309,11 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 		PathMatcher pathMatcher = configurer.getPathMatcher();
 		if (pathMatcher != null) {
 			mapping.setPathMatcher(pathMatcher);
+		}
+
+		Map<String, Predicate<Class<?>>> pathPrefixes = configurer.getPathPrefixes();
+		if (pathPrefixes != null) {
+			mapping.setPathPrefixes(pathPrefixes);
 		}
 
 		return mapping;
@@ -351,15 +367,15 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 
 	/**
 	 * Override this method to configure path matching options.
-	 * @see PathMatchConfigurer
 	 * @since 4.0.3
+	 * @see PathMatchConfigurer
 	 */
 	protected void configurePathMatch(PathMatchConfigurer configurer) {
 	}
 
 	/**
 	 * Return a global {@link PathMatcher} instance for path matching
-	 * patterns in {@link HandlerMapping}s.
+	 * patterns in {@link HandlerMapping HandlerMappings}.
 	 * This instance can be configured using the {@link PathMatchConfigurer}
 	 * in {@link #configurePathMatch(PathMatchConfigurer)}.
 	 * @since 4.1
@@ -372,7 +388,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 
 	/**
 	 * Return a global {@link UrlPathHelper} instance for path matching
-	 * patterns in {@link HandlerMapping}s.
+	 * patterns in {@link HandlerMapping HandlerMappings}.
 	 * This instance can be configured using the {@link PathMatchConfigurer}
 	 * in {@link #configurePathMatch(PathMatchConfigurer)}.
 	 * @since 4.1
@@ -476,14 +492,14 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 		Assert.state(this.servletContext != null, "No ServletContext set");
 
 		ResourceHandlerRegistry registry = new ResourceHandlerRegistry(this.applicationContext,
-				this.servletContext, mvcContentNegotiationManager());
+				this.servletContext, mvcContentNegotiationManager(), mvcUrlPathHelper());
 		addResourceHandlers(registry);
 
 		AbstractHandlerMapping handlerMapping = registry.getHandlerMapping();
 		if (handlerMapping != null) {
 			handlerMapping.setPathMatcher(mvcPathMatcher());
 			handlerMapping.setUrlPathHelper(mvcUrlPathHelper());
-			handlerMapping.setInterceptors(new ResourceUrlProviderExposingInterceptor(mvcResourceUrlProvider()));
+			handlerMapping.setInterceptors(getInterceptors());
 			handlerMapping.setCorsConfigurations(getCorsConfigurations());
 		}
 		else {
@@ -629,7 +645,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	}
 
 	/**
-	 * Override this method to add custom {@link Converter}s and {@link Formatter}s.
+	 * Override this method to add custom {@link Converter}s and {@link Formatter Converter}s and {@link Formatters}.
 	 */
 	protected void addFormatters(FormatterRegistry registry) {
 	}
@@ -653,7 +669,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 					clazz = ClassUtils.forName(className, WebMvcConfigurationSupport.class.getClassLoader());
 				}
 				catch (ClassNotFoundException | LinkageError ex) {
-					throw new BeanInitializationException("Could not find default validator class", ex);
+					throw new BeanInitializationException("Failed to resolve default validator class", ex);
 				}
 				validator = (Validator) BeanUtils.instantiateClass(clazz);
 			}
@@ -688,7 +704,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	}
 
 	/**
-	 * Add custom {@link HandlerMethodArgumentResolver}s to use in addition to
+	 * Add custom {@link HandlerMethodArgumentResolver HandlerMethodArgumentResolvers} to use in addition to
 	 * the ones registered by default.
 	 * <p>Custom argument resolvers are invoked before built-in resolvers
 	 * except for those that rely on the presence of annotations (e.g.
@@ -717,7 +733,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	}
 
 	/**
-	 * Add custom {@link HandlerMethodReturnValueHandler}s in addition to the
+	 * Add custom {@link HandlerMethodReturnValueHandler HandlerMethodReturnValueHandlers} in addition to the
 	 * ones registered by default.
 	 * <p>Custom return value handlers are invoked before built-in ones except
 	 * for those that rely on the presence of annotations (e.g.
@@ -731,7 +747,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	}
 
 	/**
-	 * Provides access to the shared {@link HttpMessageConverter}s used by the
+	 * Provides access to the shared {@link HttpMessageConverter HttpMessageConverters} used by the
 	 * {@link RequestMappingHandlerAdapter} and the
 	 * {@link ExceptionHandlerExceptionResolver}.
 	 * This method cannot be overridden.
@@ -752,7 +768,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	}
 
 	/**
-	 * Override this method to add custom {@link HttpMessageConverter}s to use
+	 * Override this method to add custom {@link HttpMessageConverter HttpMessageConverters} to use
 	 * with the {@link RequestMappingHandlerAdapter} and the
 	 * {@link ExceptionHandlerExceptionResolver}. Adding converters to the
 	 * list turns off the default converters that would otherwise be registered
@@ -781,11 +797,11 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	 * @param messageConverters the list to add the default message converters to
 	 */
 	protected final void addDefaultHttpMessageConverters(List<HttpMessageConverter<?>> messageConverters) {
-		StringHttpMessageConverter stringConverter = new StringHttpMessageConverter();
-		stringConverter.setWriteAcceptCharset(false);
+		StringHttpMessageConverter stringHttpMessageConverter = new StringHttpMessageConverter();
+		stringHttpMessageConverter.setWriteAcceptCharset(false);  // see SPR-7316
 
 		messageConverters.add(new ByteArrayHttpMessageConverter());
-		messageConverters.add(stringConverter);
+		messageConverters.add(stringHttpMessageConverter);
 		messageConverters.add(new ResourceHttpMessageConverter());
 		messageConverters.add(new ResourceRegionHttpMessageConverter());
 		messageConverters.add(new SourceHttpMessageConverter<>());
@@ -850,7 +866,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 
 	/**
 	 * Returns a {@link HttpRequestHandlerAdapter} for processing requests
-	 * with {@link HttpRequestHandler}s.
+	 * with {@link HttpRequestHandler HttpRequestHandlers}.
 	 */
 	@Bean
 	public HttpRequestHandlerAdapter httpRequestHandlerAdapter() {
@@ -892,7 +908,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 
 	/**
 	 * Override this method to configure the list of
-	 * {@link HandlerExceptionResolver}s to use. Adding resolvers to the list
+	 * {@link HandlerExceptionResolver HandlerExceptionResolvers} to use. Adding resolvers to the list
 	 * turns off the default resolvers that would otherwise be registered by
 	 * default. Also see {@link #addDefaultHandlerExceptionResolvers(List)}
 	 * that can be used to add the default exception resolvers.
@@ -904,7 +920,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 
 	/**
 	 * Override this method to extend or modify the list of
-	 * {@link HandlerExceptionResolver}s after it has been configured. This may
+	 * {@link HandlerExceptionResolver HandlerExceptionResolvers} after it has been configured. This may
 	 * be useful for example to allow default resolvers to be registered and then
 	 * insert a custom one through this method.
 	 * @param exceptionResolvers the list of configured resolvers to extend.
@@ -914,15 +930,14 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	}
 
 	/**
-	 * A method available to subclasses for adding default {@link HandlerExceptionResolver}s.
+	 * A method available to subclasses for adding default {@link HandlerExceptionResolver HandlerExceptionResolvers}.
 	 * <p>Adds the following exception resolvers:
 	 * <ul>
-	 * <li>{@link ExceptionHandlerExceptionResolver}
-	 * for handling exceptions through @{@link ExceptionHandler} methods.
-	 * <li>{@link ResponseStatusExceptionResolver}
-	 * for exceptions annotated with @{@link ResponseStatus}.
-	 * <li>{@link DefaultHandlerExceptionResolver}
-	 * for resolving known Spring exception types
+	 * <li>{@link ExceptionHandlerExceptionResolver} for handling exceptions through
+	 * {@link org.springframework.web.bind.annotation.ExceptionHandler} methods.
+	 * <li>{@link ResponseStatusExceptionResolver} for exceptions annotated with
+	 * {@link org.springframework.web.bind.annotation.ResponseStatus}.
+	 * <li>{@link DefaultHandlerExceptionResolver} for resolving known Spring exception types
 	 * </ul>
 	 */
 	protected final void addDefaultHandlerExceptionResolvers(List<HandlerExceptionResolver> exceptionResolvers) {
@@ -1024,7 +1039,8 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	protected void addCorsMappings(CorsRegistry registry) {
 	}
 
-	@Bean @Lazy
+	@Bean
+	@Lazy
 	public HandlerMappingIntrospector mvcHandlerMappingIntrospector() {
 		return new HandlerMappingIntrospector();
 	}

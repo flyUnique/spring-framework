@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -104,7 +104,19 @@ public class Jaxb2XmlDecoder extends AbstractDecoder<Object> {
 		QName typeName = toQName(outputClass);
 		Flux<List<XMLEvent>> splitEvents = split(xmlEventFlux, typeName);
 
-		return splitEvents.map(events -> unmarshal(events, outputClass));
+		return splitEvents.map(events -> {
+			Object value = unmarshal(events, outputClass);
+			if (logger.isDebugEnabled()) {
+				logger.debug("Decoded [" + value + "]");
+			}
+			return value;
+		});
+	}
+
+	@Override
+	public Mono<Object> decodeToMono(Publisher<DataBuffer> inputStream, ResolvableType elementType,
+			@Nullable MimeType mimeType, @Nullable Map<String, Object> hints) {
+		return decode(inputStream, elementType, mimeType, hints).singleOrEmpty();
 	}
 
 	private Object unmarshal(List<XMLEvent> events, Class<?> outputClass) {
@@ -167,7 +179,7 @@ public class Jaxb2XmlDecoder extends AbstractDecoder<Object> {
 	}
 
 	/**
-	 * Split a flux of {@link XMLEvent}s into a flux of XMLEvent lists, one list
+	 * Split a flux of {@link XMLEvent XMLEvents} into a flux of XMLEvent lists, one list
 	 * for each branch of the tree that starts with the given qualified name.
 	 * That is, given the XMLEvents shown {@linkplain XmlEventDecoder here},
 	 * and the {@code desiredName} "{@code child}", this method returns a flux
@@ -222,12 +234,14 @@ public class Jaxb2XmlDecoder extends AbstractDecoder<Object> {
 				this.elementDepth++;
 			}
 			if (this.elementDepth > this.barrier) {
+				Assert.state(this.events != null, "No XMLEvent List");
 				this.events.add(event);
 			}
 			if (event.isEndElement()) {
 				this.elementDepth--;
 				if (this.elementDepth == this.barrier) {
 					this.barrier = Integer.MAX_VALUE;
+					Assert.state(this.events != null, "No XMLEvent List");
 					return Mono.just(this.events);
 				}
 			}

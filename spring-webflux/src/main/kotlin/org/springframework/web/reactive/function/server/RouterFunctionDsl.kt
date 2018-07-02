@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,10 @@ import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import reactor.core.publisher.Mono
 
-
 /**
  * Allow to create easily a `RouterFunction<ServerResponse>` from a Kotlin router DSL based
- * on the same building blocks than the Java one ([RouterFunction], [RequestPredicate], [HandlerFunction]).
+ * on the same building blocks than the Java one ([RouterFunction], [RequestPredicate],
+ * [HandlerFunction]).
  *
  * Example:
  *
@@ -50,7 +50,7 @@ import reactor.core.publisher.Mono
  * @see RouterFunctionDsl
  * @since 5.0
  */
-fun router(routes: RouterFunctionDsl.() -> Unit) = RouterFunctionDsl().apply(routes).router()
+fun router(routes: RouterFunctionDsl.() -> Unit) = RouterFunctionDsl(routes).invoke()
 
 /**
  * Provide a [RouterFunction] Kotlin DSL in order to be able to write idiomatic Kotlin code.
@@ -60,7 +60,7 @@ fun router(routes: RouterFunctionDsl.() -> Unit) = RouterFunctionDsl().apply(rou
  * @since 5.0
  * @see <a href="https://youtrack.jetbrains.com/issue/KT-15667">Kotlin issue about supporting ::foo for member functions</a>
  */
-open class RouterFunctionDsl {
+open class RouterFunctionDsl(private val init: RouterFunctionDsl.() -> Unit) : () -> RouterFunction<ServerResponse> {
 
 	private val routes = mutableListOf<RouterFunction<ServerResponse>>()
 
@@ -126,13 +126,13 @@ open class RouterFunctionDsl {
 	operator fun RequestPredicate.not(): RequestPredicate = this.negate()
 
 	/**
-	 * Route to the given router function if the given request predicate applies. This method can be
-	 * used to create *nested routes*, where a group of routes share a common path (prefix),
-	 * header, or other request predicate.
+	 * Route to the given router function if the given request predicate applies. This
+	 * method can be used to create *nested routes*, where a group of routes share a
+	 * common path (prefix), header, or other request predicate.
 	 * @see RouterFunctions.nest
 	 */
-	fun RequestPredicate.nest(r: RouterFunctionDsl.() -> Unit) {
-		routes += RouterFunctions.nest(this, RouterFunctionDsl().apply(r).router())
+	fun RequestPredicate.nest(init: RouterFunctionDsl.() -> Unit) {
+		routes += RouterFunctions.nest(this, RouterFunctionDsl(init).invoke())
 	}
 
 	/**
@@ -143,8 +143,8 @@ open class RouterFunctionDsl {
 	 * @see RouterFunctions.nest
 	 * @see RequestPredicates.path
 	*/
-	fun String.nest(r: RouterFunctionDsl.() -> Unit) {
-		routes += RouterFunctions.nest(path(this), RouterFunctionDsl().apply(r).router())
+	fun String.nest(init: RouterFunctionDsl.() -> Unit) {
+		routes += RouterFunctions.nest(path(this), RouterFunctionDsl(init).invoke())
 	}
 
 	/**
@@ -305,7 +305,8 @@ open class RouterFunctionDsl {
 	 * @param headersPredicate a predicate that tests against the request headers
 	 * @return a predicate that tests against the given header predicate
 	 */
-	fun headers(headersPredicate: (ServerRequest.Headers) -> Boolean): RequestPredicate = RequestPredicates.headers(headersPredicate)
+	fun headers(headersPredicate: (ServerRequest.Headers) -> Boolean): RequestPredicate =
+			RequestPredicates.headers(headersPredicate)
 
 	/**
 	 * Route to the given handler function if the given method predicate applies.
@@ -364,7 +365,8 @@ open class RouterFunctionDsl {
 	 * predicate.
 	 * @see RequestPredicates.pathExtension
 	 */
-	fun pathExtension(predicate: (String) -> Boolean): RequestPredicate = RequestPredicates.pathExtension(predicate)
+	fun pathExtension(predicate: (String) -> Boolean): RequestPredicate =
+			RequestPredicates.pathExtension(predicate)
 
 	/**
 	 * Route to the given handler function if the given queryParam predicate applies.
@@ -382,7 +384,8 @@ open class RouterFunctionDsl {
 	 * @return a predicate that matches the given predicate against the query parameter of the given name
 	 * @see ServerRequest#queryParam(String)
 	 */
-	fun queryParam(name: String, predicate: (String) -> Boolean): RequestPredicate = RequestPredicates.queryParam(name, predicate)
+	fun queryParam(name: String, predicate: (String) -> Boolean): RequestPredicate =
+			RequestPredicates.queryParam(name, predicate)
 
 	/**
 	 * Route to the given handler function if the given request predicate applies.
@@ -420,8 +423,10 @@ open class RouterFunctionDsl {
 
 	/**
 	 * Return a composed routing function created from all the registered routes.
+	 * @since 5.1
 	 */
-	internal fun router(): RouterFunction<ServerResponse> {
+	override fun invoke(): RouterFunction<ServerResponse> {
+		init()
 		return routes.reduce(RouterFunction<ServerResponse>::and)
 	}
 

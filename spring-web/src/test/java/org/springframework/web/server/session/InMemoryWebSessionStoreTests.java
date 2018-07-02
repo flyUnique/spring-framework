@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import java.time.Instant;
 
 import org.junit.Test;
 
-import org.springframework.util.Assert;
 import org.springframework.web.server.WebSession;
 
 import static junit.framework.TestCase.assertSame;
@@ -56,7 +55,7 @@ public class InMemoryWebSessionStoreTests {
 	}
 
 	@Test
-	public void retrieveExpiredSession() throws Exception {
+	public void retrieveExpiredSession() {
 		WebSession session = this.store.createWebSession().block();
 		assertNotNull(session);
 		session.getAttributes().put("foo", "bar");
@@ -74,7 +73,7 @@ public class InMemoryWebSessionStoreTests {
 	}
 
 	@Test
-	public void lastAccessTimeIsUpdatedOnRetrieve() throws Exception {
+	public void lastAccessTimeIsUpdatedOnRetrieve() {
 		WebSession session1 = this.store.createWebSession().block();
 		assertNotNull(session1);
 		String id = session1.getId();
@@ -92,7 +91,7 @@ public class InMemoryWebSessionStoreTests {
 	}
 
 	@Test
-	public void expirationChecks() throws Exception {
+	public void expirationChecks() {
 		// Create 3 sessions
 		WebSession session1 = this.store.createWebSession().block();
 		assertNotNull(session1);
@@ -131,7 +130,5 @@ public class InMemoryWebSessionStoreTests {
 		assertNotNull(this.store.retrieveSession(session4.getId()).block());
 		assertNotNull(this.store.retrieveSession(session5.getId()).block());
 	}
-
-
 
 }

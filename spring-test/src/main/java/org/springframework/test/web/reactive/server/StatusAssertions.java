@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -135,6 +135,14 @@ public class StatusAssertions {
 	}
 
 	/**
+	 * Assert the response status code is {@code HttpStatus.FORBIDDEN} (403).
+	 * @since 5.0.2
+	 */
+	public WebTestClient.ResponseSpec isForbidden() {
+		return assertStatusAndReturn(HttpStatus.FORBIDDEN);
+	}
+
+	/**
 	 * Assert the response status code is {@code HttpStatus.NOT_FOUND} (404).
 	 */
 	public WebTestClient.ResponseSpec isNotFound() {
@@ -187,7 +195,6 @@ public class StatusAssertions {
 		return assertSeriesAndReturn(expected);
 	}
 
-	// Private methods
 
 	private WebTestClient.ResponseSpec assertStatusAndReturn(HttpStatus expected) {
 		HttpStatus actual = this.exchangeResult.getStatus();
@@ -197,8 +204,8 @@ public class StatusAssertions {
 
 	private WebTestClient.ResponseSpec assertSeriesAndReturn(HttpStatus.Series expected) {
 		HttpStatus status = this.exchangeResult.getStatus();
-		String message = "Range for response status value " + status;
-		this.exchangeResult.assertWithDiagnostics(() -> assertEquals(message, expected, status.series()));
+		this.exchangeResult.assertWithDiagnostics(() ->
+				assertEquals("Range for response status value " + status, expected, status.series()));
 		return this.responseSpec;
 	}
 

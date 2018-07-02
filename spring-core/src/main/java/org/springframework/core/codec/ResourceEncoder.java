@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.core.codec;
 
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
 import reactor.core.publisher.Flux;
 
 import org.springframework.core.ResolvableType;
@@ -32,13 +33,16 @@ import org.springframework.util.MimeTypeUtils;
 import org.springframework.util.StreamUtils;
 
 /**
- * Encoder for {@link Resource}s.
+ * Encoder for {@link Resource Resources}.
  *
  * @author Arjen Poutsma
  * @since 5.0
  */
 public class ResourceEncoder extends AbstractSingleValueEncoder<Resource> {
 
+	/**
+	 * The default buffer size used by the encoder.
+	 */
 	public static final int DEFAULT_BUFFER_SIZE = StreamUtils.BUFFER_SIZE;
 
 	private final int bufferSize;
@@ -64,6 +68,11 @@ public class ResourceEncoder extends AbstractSingleValueEncoder<Resource> {
 	@Override
 	protected Flux<DataBuffer> encode(Resource resource, DataBufferFactory dataBufferFactory,
 			ResolvableType type, @Nullable MimeType mimeType, @Nullable Map<String, Object> hints) {
+
+		Log logger = getLogger(hints);
+		if (logger.isDebugEnabled()) {
+			logger.debug("Writing [" + resource + "]");
+		}
 
 		return DataBufferUtils.read(resource, dataBufferFactory, this.bufferSize);
 	}
